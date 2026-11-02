@@ -1,0 +1,1215 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Users, Calendar, CheckSquare, BarChart3, BookOpen, Plus, Trash2, 
+  CheckCircle2, Circle, TrendingUp, Award, Layers, Target, ChevronRight,
+  Filter, Sparkles, AlertCircle, PieChart, Download, FileText, Compass, Info
+} from 'lucide-react';
+
+// --- INITIAL CURRICULUM MASTER DATA ---
+const MASTER_CURRICULUM = {
+  LGS: {
+    Matematik: ['Çarpanlar ve Katlar', 'Üslü İfadeler', 'Kareköklü İfadeler', 'Veri Analizi', 'Basit Olayların Olma Olasılığı', 'Cebirsel İfadeler ve Özdeşlikler', 'Doğrusal Denklemler', 'Eşitsizlikler', 'Üçgenler', 'Eşlik ve Benzerlik', 'Dönüşüm Geometrisi', 'Geometrik Cisimler'],
+    Türkçe: ['Fiilimsiler', 'Sözcükte Anlam', 'Cümlede Anlam', 'Paragrafta Anlam', 'Deyimler ve Atasözleri', 'Metin Türleri', 'Söz Sanatları', 'Cümlenin Ögeleri', 'Fiilde Çatı', 'Cümle Türleri', 'Yazım Kuralları', 'Noktalama İşaretleri', 'Sözel Mantık / Görsel Okuma'],
+    Fen: ['Mevsimler ve İklim', 'DNA ve Genetik Kod', 'Basınç', 'Madde ve Endüstri', 'Basit Makineler', 'Enerji Dönüşümleri ve Çevre Bilimi', 'Elektrik Yükleri ve Elektrik Enerjisi'],
+    Tarih: ['Bir Kahraman Doğuyor', 'Milli Uyanış: Bağımsızlık Yolunda Atılan Adımlar', 'Milli Bir Destan: Ya İstiklal Ya Ölüm!', 'Atatürkçülük ve Çağdaşlaşan Türkiye', 'Demokratikleşme Çabaları', 'Atatürk Dönemi Türk Dış Politikası', 'Atatürk\'ün Ölümü ve Sonrası'],
+    İngilizce: ['Friendship', 'Teen Life', 'In the Kitchen', 'On the Phone', 'The Internet', 'Adventures', 'Tourism', 'Chores', 'Science', 'Natural Forces'],
+    Din: ['Kader İnancı', 'Zekat ve Sadaka', 'Din ve Hayat', 'Hz. Muhammed\'in Örnekliği', 'Kur\'an-ı Kerim ve Özellikleri']
+  },
+  YKS: {
+    'TYT Matematik': ['Temel Kavramlar', 'Sayı Basamakları', 'Bölme - Bölünebilme', 'EBOB - EKOK', 'Rasyonel Sayılar', 'Basit Eşitsizlikler', 'Mutlak Değer', 'Üslü - Köklü İfadeler', 'Çarpanlara Ayırma', 'Oran-Orantı', 'Denklem Çözme', 'Problemler (Sayı, Kesir, Yaş, Yüzde, Kar-Zarar, Hız, Karışım, Grafik)', 'Kümeler - Mantık', 'Fonksiyonlar', 'Polinomlar', 'İkinci Dereceden Denklemler', 'PKOB (Permütasyon-Kombinasyon-Olasılık)'],
+    'AYT Matematik': ['Fonksiyonlarda Uygulamalar', 'İkinci Dereceden Eşitsizlikler', 'Parabol', 'Trigonometri', 'Logaritma', 'Diziler', 'Limit ve Süreklilik', 'Türev', 'İntegral'],
+    'TYT Türkçe': ['Sözcükte Anlam', 'Cümlede Anlam', 'Paragrafta Anlam', 'Ses Bilgisi', 'Yazım Kuralları', 'Noktalama İşaretleri', 'Sözcükte Yapı', 'İsim / Sıfat / Zamir / Zarf', 'Edat - Bağlaç - Ünlem', 'Fiil / Fiilimsi / Ek Fiil', 'Cümlenin Ögeleri', 'Cümle Türleri', 'Anlatım Bozuklukları'],
+    'AYT Edebiyat': ['Metinlerin Sınıflandırılması', 'Şiir Bilgisi', 'Edebi Sanatlar', 'İslamiyet Öncesi Türk Edebiyatı', 'Halk Edebiyatı', 'Divan Edebiyatı', 'Tanzimat Edebiyatı', 'Servet-i Fünun ve Fecr-i Ati', 'Milli Edebiyat', 'Cumhuriyet Dönemi Edebiyatı', 'Edebi Akımlar'],
+    'Fizik (TYT/AYT)': ['Fizik Bilimine Giriş', 'Madde ve Özellikleri', 'Kuvvet ve Hareket', 'İş, Güç ve Enerji', 'Isı ve Sıcaklık', 'Elektrostatik ve Elektrik Akımı', 'Optik', 'Dalgalar', 'Vektörler / Bağıl Hareket', 'Newton\'un Hareket Yasaları', 'Çembersel Hareket', 'Basit Harmonik Hareket', 'Modern Fizik'],
+    'Kimya (TYT/AYT)': ['Kimya Bilimi', 'Atom ve Periyodik Sistem', 'Kimyasal Türler Arası Etkileşimler', 'Maddenin Halleri', 'Mol Kavramı ve Hesaplamalar', 'Asit, Baz ve Tuz', 'Kimyasal Denge', 'Elektrokimya', 'Organik Kimya'],
+    'Biyoloji (TYT/AYT)': ['Yaşam Bilimi Biyoloji', 'Hücre ve Organeller', 'Canlıların Sınıflandırılması', 'Hücre Bölünmeleri', 'Kalıtım', 'Ekosistem Ekolojisi', 'İnsan Fizyolojisi (Sistemler)', 'Genden Proteine', 'Bitki Biyolojisi']
+  }
+};
+
+// --- YKS & LGS ESTIMATED RANKING CALCULATION ENGINE ---
+const estimateYKSRanking = (trackType, score, year) => {
+  if (!score || score <= 0) return '-';
+  
+  let benchmarks = [];
+  if (trackType === 'SAYISAL') {
+    benchmarks = [
+      [550, 1, 1], [530, 250, 200], [500, 1850, 1500], [470, 7200, 6100], 
+      [440, 21000, 18200], [410, 43500, 39000], [380, 76000, 69000], 
+      [350, 120000, 110000], [300, 225000, 205000], [250, 390000, 360000], [200, 650000, 610000]
+    ];
+  } else if (trackType === 'EA') {
+    benchmarks = [
+      [540, 1, 1], [500, 380, 310], [460, 2900, 2400], [420, 12500, 10500],
+      [380, 38000, 33000], [340, 92000, 82000], [300, 195000, 175000], 
+      [260, 380000, 345000], [200, 820000, 760000]
+    ];
+  } else if (trackType === 'SOZEL') {
+    benchmarks = [
+      [530, 1, 1], [480, 450, 380], [440, 3100, 2600], [400, 14000, 12000],
+      [360, 48000, 41000], [320, 115000, 102000], [280, 240000, 215000], [220, 580000, 520000]
+    ];
+  } else {
+    benchmarks = [
+      [500, 1, 1], [470, 2500, 2100], [430, 18000, 15500], [390, 62000, 54000],
+      [350, 145000, 130000], [310, 280000, 250000], [270, 490000, 440000], [220, 950000, 870000]
+    ];
+  }
+
+  const colIdx = year === 2024 ? 1 : 2;
+
+  if (score >= benchmarks[0][0]) return `~${benchmarks[0][colIdx]}`;
+  const last = benchmarks[benchmarks.length - 1];
+  if (score <= last[0]) return `>${last[colIdx]}`;
+
+  for (let i = 0; i < benchmarks.length - 1; i++) {
+    const [s1, r1_24, r1_25] = benchmarks[i];
+    const [s2, r2_24, r2_25] = benchmarks[i + 1];
+    const r1 = year === 2024 ? r1_24 : r1_25;
+    const r2 = year === 2024 ? r2_24 : r2_25;
+
+    if (score <= s1 && score >= s2) {
+      const ratio = (s1 - score) / (s1 - s2);
+      const estRank = Math.round(r1 + ratio * (r2 - r1));
+      return `~${estRank.toLocaleString('tr-TR')}`;
+    }
+  }
+  return '-';
+};
+
+// Initial Mock Students
+const INITIAL_STUDENTS = [
+  {
+    id: '1',
+    name: 'Zeynep Yılmaz',
+    track: 'YKS',
+    yksField: 'SAYISAL',
+    target: 'Hacettepe Tıp (YKS Sayısal)',
+    weeklyGoalCount: 5,
+    weeklyTargets: [
+      { id: 'wt-1', subject: 'AYT Matematik', topic: 'Trigonometri', status: 'completed', assignedDay: 'Pazartesi' },
+      { id: 'wt-2', subject: 'AYT Matematik', topic: 'Logaritma', status: 'in-progress', assignedDay: 'Salı' },
+      { id: 'wt-3', subject: 'Fizik (TYT/AYT)', topic: 'Vektörler / Bağıl Hareket', status: 'completed', assignedDay: 'Çarşamba' },
+      { id: 'wt-4', subject: 'Kimya (TYT/AYT)', topic: 'Kimyasal Denge', status: 'pending', assignedDay: 'Perşembe' },
+      { id: 'wt-5', subject: 'TYT Türkçe', topic: 'Paragrafta Anlam', status: 'completed', assignedDay: 'Cuma' }
+    ],
+    resources: [
+      { id: 'res-1', title: '3D AYT Matematik Soru Bankası', subject: 'AYT Matematik', topic: 'Trigonometri', completed: true },
+      { id: 'res-2', title: 'Orijinal AYT Matematik', subject: 'AYT Matematik', topic: 'Logaritma', completed: false },
+      { id: 'res-3', title: 'Palme Fizik Soru Bankası', subject: 'Fizik (TYT/AYT)', topic: 'Vektörler / Bağıl Hareket', completed: true },
+      { id: 'res-4', title: 'Aydın Kimya AYT', subject: 'Kimya (TYT/AYT)', topic: 'Kimyasal Denge', completed: false },
+      { id: 'res-5', title: 'Limit Kronometre Paragraf', subject: 'TYT Türkçe', topic: 'Paragrafta Anlam', completed: true }
+    ],
+    exams: [
+      { 
+        id: 'ex-1', 
+        title: 'Özdebir Türkiye Geneli - 1', 
+        date: '2026-10-12', 
+        detailNets: {
+          tytTurkce: 32.5, tytMat: 30.0, tytSosyal: 15.0, tytFen: 17.0,
+          aytMat: 28.5, aytFizik: 11.25, aytKimya: 10.0, aytBiyo: 12.25,
+          aytEdebiyat: 0, aytTarih1: 0, aytCogr1: 0
+        },
+        tytNet: 94.5, aytNet: 62.0, totalNet: 156.5, totalPoints: 445 
+      },
+      { 
+        id: 'ex-2', 
+        title: '3D Türkiye Geneli - 1', 
+        date: '2026-10-24', 
+        detailNets: {
+          tytTurkce: 35.0, tytMat: 31.25, tytSosyal: 14.5, tytFen: 17.25,
+          aytMat: 30.0, aytFizik: 12.0, aytKimya: 11.5, aytBiyo: 12.0,
+          aytEdebiyat: 0, aytTarih1: 0, aytCogr1: 0
+        },
+        tytNet: 98.0, aytNet: 65.5, totalNet: 163.5, totalPoints: 462 
+      },
+      { 
+        id: 'ex-3', 
+        title: 'Bilgi Sarmal Deneme - 2', 
+        date: '2026-11-01', 
+        detailNets: {
+          tytTurkce: 36.25, tytMat: 33.5, tytSosyal: 14.0, tytFen: 17.5,
+          aytMat: 31.5, aytFizik: 12.5, aytKimya: 11.0, aytBiyo: 13.0,
+          aytEdebiyat: 0, aytTarih1: 0, aytCogr1: 0
+        },
+        tytNet: 101.25, aytNet: 68.0, totalNet: 169.25, totalPoints: 478 
+      }
+    ]
+  },
+  {
+    id: '2',
+    name: 'Ali Demir',
+    track: 'LGS',
+    yksField: 'LGS',
+    target: 'Galatasaray Lisesi (LGS)',
+    weeklyGoalCount: 4,
+    weeklyTargets: [
+      { id: 'wt-l1', subject: 'Matematik', topic: 'Çarpanlar ve Katlar', status: 'completed', assignedDay: 'Pazartesi' },
+      { id: 'wt-l2', subject: 'Matematik', topic: 'Üslü İfadeler', status: 'in-progress', assignedDay: 'Salı' },
+      { id: 'wt-l3', subject: 'Türkçe', topic: 'Fiilimsiler', status: 'completed', assignedDay: 'Çarşamba' },
+      { id: 'wt-l4', subject: 'Fen', topic: 'Mevsimler ve İklim', status: 'completed', assignedDay: 'Perşembe' }
+    ],
+    resources: [
+      { id: 'res-l1', title: 'Mozaik Matematik Soru Bankası', subject: 'Matematik', topic: 'Çarpanlar ve Katlar', completed: true },
+      { id: 'res-l2', title: 'Okyanus Master Matematik', subject: 'Matematik', topic: 'Üslü İfadeler', completed: false },
+      { id: 'res-l3', title: 'Pargrafın Ritmi LGS', subject: 'Türkçe', topic: 'Fiilimsiler', completed: true },
+      { id: 'res-l4', title: 'Ankara Yayıncılık Fen', subject: 'Fen', topic: 'Mevsimler ve İklim', completed: true }
+    ],
+    exams: [
+      { 
+        id: 'ex-l1', 
+        title: 'Nartest Türkiye Geneli LGS-1', 
+        date: '2026-10-15', 
+        detailNets: { lgsTurkce: 18.0, lgsMat: 16.5, lgsFen: 18.0, lgsInkilap: 9.0, lgsDin: 10.0, lgsIng: 9.0 },
+        totalNet: 80.5, 
+        totalPoints: 442 
+      },
+      { 
+        id: 'ex-l2', 
+        title: 'Mozaik Türkiye Geneli LGS-2', 
+        date: '2026-10-28', 
+        detailNets: { lgsTurkce: 19.0, lgsMat: 17.0, lgsFen: 19.0, lgsInkilap: 10.0, lgsDin: 10.0, lgsIng: 10.0 },
+        totalNet: 85.0, 
+        totalPoints: 468 
+      }
+    ]
+  }
+];
+
+const DAYS_OF_WEEK = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+export default function App() {
+  const [students, setStudents] = useState(INITIAL_STUDENTS);
+  const [activeStudentId, setActiveStudentId] = useState(INITIAL_STUDENTS[0].id);
+  const [activeTab, setActiveTab] = useState('weekly');
+
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [selectedDay, setSelectedDay] = useState('Pazartesi');
+  const [newResourceName, setNewResourceName] = useState('');
+  
+  const [examForm, setExamForm] = useState({
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    totalPoints: '',
+    tytTurkce: '', tytMat: '', tytSosyal: '', tytFen: '',
+    aytMat: '', aytFizik: '', aytKimya: '', aytBiyo: '',
+    aytEdebiyat: '', aytTarih1: '', aytCogr1: '',
+    lgsTurkce: '', lgsMat: '', lgsFen: '', lgsInkilap: '', lgsDin: '', lgsIng: ''
+  });
+
+  const currentStudent = useMemo(() => {
+    return students.find(s => s.id === activeStudentId) || students[0];
+  }, [students, activeStudentId]);
+
+  const updateStudentData = (updater) => {
+    setStudents(prev => prev.map(s => s.id === currentStudent.id ? updater(s) : s));
+  };
+
+  const availableSubjects = useMemo(() => {
+    return Object.keys(MASTER_CURRICULUM[currentStudent.track] || {});
+  }, [currentStudent.track]);
+
+  const availableTopics = useMemo(() => {
+    if (!selectedSubject) return [];
+    return MASTER_CURRICULUM[currentStudent.track][selectedSubject] || [];
+  }, [currentStudent.track, selectedSubject]);
+
+  const progressStats = useMemo(() => {
+    const totalAssigned = currentStudent.weeklyTargets.length;
+    const completedAssigned = currentStudent.weeklyTargets.filter(t => t.status === 'completed').length;
+    const weeklyPercent = totalAssigned === 0 ? 0 : Math.round((completedAssigned / totalAssigned) * 100);
+
+    const subjectBreakdown = {};
+    availableSubjects.forEach(sub => {
+      const subTargets = currentStudent.weeklyTargets.filter(t => t.subject === sub);
+      const subCompleted = subTargets.filter(t => t.status === 'completed').length;
+      subjectBreakdown[sub] = {
+        total: subTargets.length,
+        completed: subCompleted,
+        percent: subTargets.length === 0 ? 0 : Math.round((subCompleted / subTargets.length) * 100)
+      };
+    });
+
+    const resourceCompleted = currentStudent.resources.filter(r => r.completed).length;
+    const resourceTotal = currentStudent.resources.length;
+    const resourcePercent = resourceTotal === 0 ? 0 : Math.round((resourceCompleted / resourceTotal) * 100);
+
+    return { weeklyPercent, completedAssigned, totalAssigned, subjectBreakdown, resourcePercent, resourceCompleted, resourceTotal };
+  }, [currentStudent, availableSubjects]);
+
+  const calculatedFormNets = useMemo(() => {
+    const isYKS = currentStudent.track === 'YKS';
+    if (isYKS) {
+      const tytNet = (Number(examForm.tytTurkce)||0) + (Number(examForm.tytMat)||0) + (Number(examForm.tytSosyal)||0) + (Number(examForm.tytFen)||0);
+      const aytNet = (Number(examForm.aytMat)||0) + (Number(examForm.aytFizik)||0) + (Number(examForm.aytKimya)||0) + (Number(examForm.aytBiyo)||0) + (Number(examForm.aytEdebiyat)||0) + (Number(examForm.aytTarih1)||0) + (Number(examForm.aytCogr1)||0);
+      const totalNet = tytNet + aytNet;
+      
+      let estPoints = Number(examForm.totalPoints);
+      if (!estPoints || estPoints === 0) {
+        estPoints = Math.round(100 + (tytNet * 1.33) + (aytNet * 3.0));
+      }
+      return { tytNet, aytNet, totalNet, estPoints };
+    } else {
+      const totalNet = (Number(examForm.lgsTurkce)||0) + (Number(examForm.lgsMat)||0) + (Number(examForm.lgsFen)||0) + (Number(examForm.lgsInkilap)||0) + (Number(examForm.lgsDin)||0) + (Number(examForm.lgsIng)||0);
+      let estPoints = Number(examForm.totalPoints);
+      if (!estPoints || estPoints === 0) {
+        estPoints = Math.round(200 + (totalNet * 3.3));
+      }
+      return { tytNet: 0, aytNet: 0, totalNet, estPoints };
+    }
+  }, [examForm, currentStudent.track]);
+
+  const rankedExams = useMemo(() => {
+    const sorted = [...currentStudent.exams].sort((a, b) => {
+      const scoreA = Number(a.totalPoints || a.totalNet || 0);
+      const scoreB = Number(b.totalPoints || b.totalNet || 0);
+      return scoreB - scoreA;
+    });
+
+    const field = currentStudent.yksField || 'SAYISAL';
+
+    return currentStudent.exams.map(exam => {
+      const rankIndex = sorted.findIndex(s => s.id === exam.id);
+      const pts = Number(exam.totalPoints || 0);
+      return {
+        ...exam,
+        rank: rankIndex + 1,
+        rank2024: estimateYKSRanking(field, pts, 2024),
+        rank2025: estimateYKSRanking(field, pts, 2025)
+      };
+    });
+  }, [currentStudent.exams, currentStudent.track, currentStudent.yksField]);
+
+  const handleAddTargetTopic = () => {
+    if (!selectedSubject || !selectedTopic) return;
+    const targetId = `wt-${Date.now()}`;
+    const newTarget = {
+      id: targetId,
+      subject: selectedSubject,
+      topic: selectedTopic,
+      status: 'pending',
+      assignedDay: selectedDay
+    };
+
+    let newResourceList = [...currentStudent.resources];
+    if (newResourceName.trim()) {
+      newResourceList.push({
+        id: `res-${Date.now()}`,
+        title: newResourceName.trim(),
+        subject: selectedSubject,
+        topic: selectedTopic,
+        completed: false
+      });
+    }
+
+    updateStudentData(s => ({
+      ...s,
+      weeklyTargets: [...s.weeklyTargets, newTarget],
+      resources: newResourceList
+    }));
+
+    setSelectedTopic('');
+    setNewResourceName('');
+  };
+
+  const toggleTargetStatus = (id) => {
+    updateStudentData(s => {
+      const target = s.weeklyTargets.find(t => t.id === id);
+      if (!target) return s;
+
+      const nextStatus = target.status === 'completed' ? 'pending' : 'completed';
+      const isNowCompleted = nextStatus === 'completed';
+
+      const updatedResources = s.resources.map(res => {
+        if (res.topic === target.topic && res.subject === target.subject) {
+          return { ...res, completed: isNowCompleted };
+        }
+        return res;
+      });
+
+      const updatedTargets = s.weeklyTargets.map(t => t.id === id ? { ...t, status: nextStatus } : t);
+
+      return {
+        ...s,
+        weeklyTargets: updatedTargets,
+        resources: updatedResources
+      };
+    });
+  };
+
+  const removeTarget = (id) => {
+    updateStudentData(s => ({
+      ...s,
+      weeklyTargets: s.weeklyTargets.filter(t => t.id !== id)
+    }));
+  };
+
+  const handleAddExam = (e) => {
+    e.preventDefault();
+    if (!examForm.title) return;
+
+    const detailNets = { ...examForm };
+    delete detailNets.title;
+    delete detailNets.date;
+    delete detailNets.totalPoints;
+
+    const newExam = {
+      id: `ex-${Date.now()}`,
+      title: examForm.title,
+      date: examForm.date || new Date().toISOString().split('T')[0],
+      detailNets,
+      tytNet: calculatedFormNets.tytNet,
+      aytNet: calculatedFormNets.aytNet,
+      totalNet: calculatedFormNets.totalNet,
+      totalPoints: calculatedFormNets.estPoints
+    };
+
+    updateStudentData(s => ({
+      ...s,
+      exams: [newExam, ...s.exams]
+    }));
+
+    setExamForm({
+      title: '',
+      date: new Date().toISOString().split('T')[0],
+      totalPoints: '',
+      tytTurkce: '', tytMat: '', tytSosyal: '', tytFen: '',
+      aytMat: '', aytFizik: '', aytKimya: '', aytBiyo: '',
+      aytEdebiyat: '', aytTarih1: '', aytCogr1: '',
+      lgsTurkce: '', lgsMat: '', lgsFen: '', lgsInkilap: '', lgsDin: '', lgsIng: ''
+    });
+  };
+
+  const toggleResource = (id) => {
+    updateStudentData(s => ({
+      ...s,
+      resources: s.resources.map(r => r.id === id ? { ...r, completed: !r.completed } : r)
+    }));
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      
+      {/* HEADER NAVBAR */}
+      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-tr from-indigo-500 to-teal-400 p-2 rounded-xl shadow-lg">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
+                Koçluk & Öğrenci Takip Sistemi
+              </h1>
+              <p className="text-xs text-slate-400">LGS & YKS Otomatik Program Paneli</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <label className="text-xs font-semibold text-slate-400 hidden sm:inline">Aktif Öğrenci:</label>
+            <div className="relative">
+              <select 
+                value={activeStudentId} 
+                onChange={(e) => setActiveStudentId(e.target.value)}
+                className="bg-slate-800 text-slate-100 font-medium text-sm rounded-lg px-3 py-1.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-400 shadow-sm cursor-pointer"
+              >
+                {students.map(std => (
+                  <option key={std.id} value={std.id}>
+                    {std.name} ({std.track} - {std.yksField || 'Genel'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button 
+              onClick={() => {
+                const name = prompt('Yeni Öğrenci Adı:');
+                if (!name) return;
+                const track = prompt('Sınav Türü (LGS veya YKS):', 'YKS')?.toUpperCase() === 'LGS' ? 'LGS' : 'YKS';
+                let field = 'SAYISAL';
+                if (track === 'YKS') {
+                  field = prompt('YKS Alanı (SAYISAL, EA, SOZEL, TYT):', 'SAYISAL')?.toUpperCase() || 'SAYISAL';
+                }
+                const newId = String(Date.now());
+                const newStd = {
+                  id: newId,
+                  name,
+                  track,
+                  yksField: field,
+                  target: 'Hedef Belirlenmedi',
+                  weeklyTargets: [],
+                  resources: [],
+                  exams: []
+                };
+                setStudents([...students, newStd]);
+                setActiveStudentId(newId);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm"
+              title="Yeni Öğrenci Ekle"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden md:inline">Yeni Öğrenci</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* DASHBOARD HERO / QUICK STATS BAR */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wide ${
+                  currentStudent.track === 'LGS' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'
+                }`}>
+                  {currentStudent.track} {currentStudent.track === 'YKS' ? `(${currentStudent.yksField || 'SAYISAL'})` : ''}
+                </span>
+                <h2 className="text-2xl font-bold text-slate-900">{currentStudent.name}</h2>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-teal-600" />
+                Hedef: <span className="font-medium text-slate-700">{currentStudent.target}</span>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="text-center px-2">
+                <span className="text-xs text-slate-500 block font-medium">Haftalık Başarı</span>
+                <span className="text-xl font-black text-indigo-600">%{progressStats.weeklyPercent}</span>
+              </div>
+              <div className="text-center border-x border-slate-200 px-2">
+                <span className="text-xs text-slate-500 block font-medium">Kaynak Tamamlama</span>
+                <span className="text-xl font-black text-teal-600">%{progressStats.resourcePercent}</span>
+              </div>
+              <div className="text-center px-2">
+                <span className="text-xs text-slate-500 block font-medium">Deneme Sayısı</span>
+                <span className="text-xl font-black text-amber-600">{currentStudent.exams.length}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-1 mt-6 border-b border-slate-200 overflow-x-auto scrollbar-none">
+            {[
+              { id: 'weekly', label: 'Haftalık Konu Seçimi & Hedefler', icon: CheckSquare },
+              { id: 'schedule', label: 'Haftalık Program & Takvim', icon: Calendar },
+              { id: 'resources', label: 'Kaynak Listesi & Analiz', icon: BookOpen },
+              { id: 'exams', label: 'Deneme Takibi & Ders Netleri', icon: BarChart3 }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 py-3 px-4 font-semibold text-sm border-b-2 whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        
+        {activeTab === 'weekly' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                <Filter className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">Haftalık Konu Atama Paneli</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-5">
+                Müfredat listesinden öğrencinin bu hafta çalışacağı konuları seçin ve haftalık hedefine ekleyin.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Ders Seçin
+                  </label>
+                  <select
+                    value={selectedSubject}
+                    onChange={(e) => {
+                      setSelectedSubject(e.target.value);
+                      setSelectedTopic('');
+                    }}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                  >
+                    <option value="">-- Ders Seçiniz --</option>
+                    {availableSubjects.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Konu Seçin ({selectedSubject ? availableTopics.length : 0} Konu Hazır)
+                  </label>
+                  <select
+                    disabled={!selectedSubject}
+                    value={selectedTopic}
+                    onChange={(e) => setSelectedTopic(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition disabled:opacity-50"
+                  >
+                    <option value="">-- Hazır Müfredat Konusu Seçin --</option>
+                    {availableTopics.map(topic => (
+                      <option key={topic} value={topic}>{topic}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Planlanan Gün
+                  </label>
+                  <select
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                  >
+                    {DAYS_OF_WEEK.map(day => (
+                      <option key={day} value={day}>{day}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Kaynak Kitap / Test (Opsiyonel)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Örn: 3D Soru Bankası Test 1-4"
+                    value={newResourceName}
+                    onChange={(e) => setNewResourceName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Girilirse, otomatik olarak kaynak listesine de senkronize edilir.</p>
+                </div>
+
+                <button
+                  disabled={!selectedSubject || !selectedTopic}
+                  onClick={handleAddTargetTopic}
+                  className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Haftalık Programına Ekle</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              <div className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-xs uppercase tracking-wider text-indigo-300 font-bold">Haftalık Tamamlanma Analizi</h4>
+                    <div className="text-3xl font-black mt-1">
+                      {progressStats.completedAssigned} / {progressStats.totalAssigned} Konu
+                    </div>
+                    <p className="text-slate-300 text-xs mt-1">
+                      Öğrencinin bu hafta bitirmesi gereken hedeflerin durumu.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center bg-white/10 backdrop-blur-md px-5 py-3 rounded-xl border border-white/10">
+                    <div className="text-center">
+                      <span className="text-2xl font-black text-teal-400">%{progressStats.weeklyPercent}</span>
+                      <span className="block text-[10px] text-slate-300 uppercase font-semibold">Başarı Oranı</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-full bg-slate-800 h-2.5 rounded-full mt-5 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-teal-400 to-indigo-400 h-full transition-all duration-500"
+                    style={{ width: `${progressStats.weeklyPercent}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    Bu Haftanın Belirlenen Konuları
+                  </h3>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Tıklayarak durumunu değiştirin
+                  </span>
+                </div>
+
+                {currentStudent.weeklyTargets.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                    <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-600">Henüz haftalık konu atanmamış.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {currentStudent.weeklyTargets.map((item) => {
+                      const isDone = item.status === 'completed';
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-4 rounded-xl border transition ${
+                            isDone 
+                              ? 'bg-emerald-50/60 border-emerald-200 text-slate-700' 
+                              : 'bg-white border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3.5 flex-1 min-w-0">
+                            <button onClick={() => toggleTargetStatus(item.id)} className="focus:outline-none">
+                              {isDone ? (
+                                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                              ) : (
+                                <Circle className="w-6 h-6 text-slate-400 hover:text-indigo-500" />
+                              )}
+                            </button>
+                            <div className="truncate">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                  {item.subject}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-500 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
+                                  {item.assignedDay}
+                                </span>
+                              </div>
+                              <h4 className={`text-sm font-bold mt-1 truncate ${isDone ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                                {item.topic}
+                              </h4>
+                            </div>
+                          </div>
+
+                          <button onClick={() => removeTarget(item.id)} className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'schedule' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-indigo-600" />
+                  Haftalık Çalışma ve Ders Dağılım Takvimi
+                </h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+              {DAYS_OF_WEEK.map((day) => {
+                const dayTargets = currentStudent.weeklyTargets.filter(t => t.assignedDay === day);
+                return (
+                  <div key={day} className="bg-slate-50 rounded-xl border border-slate-200 p-3 min-h-[220px] flex flex-col">
+                    <div className="font-bold text-xs uppercase tracking-wider text-slate-700 mb-3 text-center py-1 bg-white rounded border border-slate-200">
+                      {day}
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      {dayTargets.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-[11px] text-slate-400 italic">Boş Gün</div>
+                      ) : (
+                        dayTargets.map(t => {
+                          const isDone = t.status === 'completed';
+                          return (
+                            <div
+                              key={t.id}
+                              onClick={() => toggleTargetStatus(t.id)}
+                              className={`p-2.5 rounded-lg border text-xs cursor-pointer transition shadow-sm ${
+                                isDone 
+                                  ? 'bg-emerald-100/80 border-emerald-300 text-emerald-900' 
+                                  : 'bg-white border-slate-200 hover:border-indigo-400 text-slate-800'
+                              }`}
+                            >
+                              <span className="font-extrabold text-[10px] block uppercase text-slate-500">{t.subject}</span>
+                              <p className="font-semibold mt-0.5 line-clamp-2">{t.topic}</p>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'resources' && (
+          <div className="space-y-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <h3 className="font-bold text-slate-900 text-lg mb-1 flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-indigo-600" />
+                Ders Bazlı Otomatik Yüzdelik Analiz
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                {availableSubjects.map(sub => {
+                  const stat = progressStats.subjectBreakdown[sub] || { total: 0, completed: 0, percent: 0 };
+                  return (
+                    <div key={sub} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-slate-800">{sub}</span>
+                        <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">%{stat.percent}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
+                        <div className="bg-indigo-600 h-full transition-all duration-500" style={{ width: `${stat.percent}%` }}></div>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                        <span>Tamamlanan: {stat.completed} Konu</span>
+                        <span>Toplam: {stat.total} Konu</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-teal-600" />
+                  Kaynak Listesi & Senkronize Durum
+                </h3>
+              </div>
+
+              {currentStudent.resources.length === 0 ? (
+                <p className="text-center py-8 text-sm text-slate-400 italic">Kayıtlı kaynak bulunmuyor.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-400 bg-slate-50">
+                        <th className="py-3 px-4">Durum</th>
+                        <th className="py-3 px-4">Kaynak Adı</th>
+                        <th className="py-3 px-4">Ders</th>
+                        <th className="py-3 px-4">İlişkili Konu</th>
+                        <th className="py-3 px-4 text-right">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {currentStudent.resources.map(res => (
+                        <tr key={res.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3.5 px-4">
+                            <button onClick={() => toggleResource(res.id)}>
+                              {res.completed ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-slate-300" />}
+                            </button>
+                          </td>
+                          <td className={`py-3.5 px-4 font-bold ${res.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{res.title}</td>
+                          <td className="py-3.5 px-4"><span className="text-xs font-semibold px-2 py-1 rounded bg-slate-100 text-slate-700">{res.subject}</span></td>
+                          <td className="py-3.5 px-4 text-slate-600 text-xs font-medium">{res.topic}</td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button onClick={() => updateStudentData(s => ({ ...s, resources: s.resources.filter(r => r.id !== res.id) }))} className="text-slate-400 hover:text-rose-600">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: DETAILED SUBJECT-BY-SUBJECT NET ENTRY & ESTIMATED RANKINGS */}
+        {activeTab === 'exams' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <div className="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+              <div className="flex items-center justify-between mb-2 pb-3 border-b border-slate-100">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-indigo-600" />
+                  Ders Ders Deneme Net Girişi
+                </h3>
+                <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
+                  {currentStudent.track}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">
+                Ders bazında doğru-yanlış netlerinizi girin. Toplam net ve tahmini YKS/LGS başarı sıranız otomatik hesaplanır.
+              </p>
+
+              <form onSubmit={handleAddExam} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Deneme Yayın / Adı
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Örn: 3D Türkiye Geneli - 2"
+                      value={examForm.title}
+                      onChange={(e) => setExamForm({ ...examForm, title: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Tarih
+                    </label>
+                    <input
+                      type="date"
+                      value={examForm.date}
+                      onChange={(e) => setExamForm({ ...examForm, date: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {currentStudent.track === 'YKS' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-extrabold text-xs text-indigo-900 uppercase tracking-wider">TYT Ders Netleri (Max 120)</span>
+                        <span className="text-xs font-black text-indigo-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          TYT Net: {calculatedFormNets.tytNet}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="text-slate-600 font-medium">Türkçe (40)</label>
+                          <input
+                            type="number" step="0.25" placeholder="0"
+                            value={examForm.tytTurkce}
+                            onChange={(e) => setExamForm({ ...examForm, tytTurkce: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-600 font-medium">Matematik (40)</label>
+                          <input
+                            type="number" step="0.25" placeholder="0"
+                            value={examForm.tytMat}
+                            onChange={(e) => setExamForm({ ...examForm, tytMat: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-600 font-medium">Sosyal (20)</label>
+                          <input
+                            type="number" step="0.25" placeholder="0"
+                            value={examForm.tytSosyal}
+                            onChange={(e) => setExamForm({ ...examForm, tytSosyal: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-600 font-medium">Fen Bilimleri (20)</label>
+                          <input
+                            type="number" step="0.25" placeholder="0"
+                            value={examForm.tytFen}
+                            onChange={(e) => setExamForm({ ...examForm, tytFen: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-extrabold text-xs text-teal-900 uppercase tracking-wider">AYT Ders Netleri (Max 80)</span>
+                        <span className="text-xs font-black text-teal-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          AYT Net: {calculatedFormNets.aytNet}
+                        </span>
+                      </div>
+                      
+                      {(currentStudent.yksField === 'SAYISAL' || !currentStudent.yksField) && (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="text-slate-600 font-medium">AYT Mat (40)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytMat}
+                              onChange={(e) => setExamForm({ ...examForm, aytMat: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">Fizik (14)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytFizik}
+                              onChange={(e) => setExamForm({ ...examForm, aytFizik: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">Kimya (13)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytKimya}
+                              onChange={(e) => setExamForm({ ...examForm, aytKimya: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">Biyoloji (13)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytBiyo}
+                              onChange={(e) => setExamForm({ ...examForm, aytBiyo: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {(currentStudent.yksField === 'EA' || currentStudent.yksField === 'SOZEL') && (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="text-slate-600 font-medium">AYT Mat (40)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytMat}
+                              onChange={(e) => setExamForm({ ...examForm, aytMat: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">T. Edebiyatı (24)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytEdebiyat}
+                              onChange={(e) => setExamForm({ ...examForm, aytEdebiyat: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">Tarih-1 (10)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytTarih1}
+                              onChange={(e) => setExamForm({ ...examForm, aytTarih1: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-600 font-medium">Coğrafya-1 (6)</label>
+                            <input
+                              type="number" step="0.25" placeholder="0"
+                              value={examForm.aytCogr1}
+                              onChange={(e) => setExamForm({ ...examForm, aytCogr1: e.target.value })}
+                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5 focus:ring-1 focus:ring-teal-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {currentStudent.track === 'LGS' && (
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                    <span className="font-extrabold text-xs text-amber-900 uppercase tracking-wider block">LGS Ders Netleri (Max 90)</span>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-slate-600 font-medium">Türkçe (20)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsTurkce}
+                          onChange={(e) => setExamForm({ ...examForm, lgsTurkce: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-600 font-medium">Matematik (20)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsMat}
+                          onChange={(e) => setExamForm({ ...examForm, lgsMat: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-600 font-medium">Fen Bilimleri (20)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsFen}
+                          onChange={(e) => setExamForm({ ...examForm, lgsFen: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-600 font-medium">T.C. İnkılap (10)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsInkilap}
+                          onChange={(e) => setExamForm({ ...examForm, lgsInkilap: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-600 font-medium">Din Kültürü (10)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsDin}
+                          onChange={(e) => setExamForm({ ...examForm, lgsDin: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-600 font-medium">Yabancı Dil (10)</label>
+                        <input
+                          type="number" step="0.25" placeholder="0"
+                          value={examForm.lgsIng}
+                          onChange={(e) => setExamForm({ ...examForm, lgsIng: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 mt-0.5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-indigo-900 text-white p-3.5 rounded-xl space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span>Otomatik Toplam Net:</span>
+                    <span className="font-black text-teal-300 text-base">{calculatedFormNets.totalNet} Net</span>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-indigo-200 mb-1">
+                      Yerleştirme Puanı (Boş bırakılırsa otomatik hesaplanır)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={`Tahmini: ~${calculatedFormNets.estPoints} Puan`}
+                      value={examForm.totalPoints}
+                      onChange={(e) => setExamForm({ ...examForm, totalPoints: e.target.value })}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-300 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Denemeyi Kaydet ve Sıralamayı Hesapla</span>
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                      <Award className="w-5 h-5 text-amber-500" />
+                      Deneme Sıralamaları & Tahmini YKS/LGS Dereceleri
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      ÖSYM 2024 ve 2025 Yıl Yığılım Verilerine göre otomatik tahmini başarı sırası hesaplanmıştır.
+                    </p>
+                  </div>
+                  <div className="text-xs bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1 rounded-lg font-bold self-start">
+                    Alan: {currentStudent.yksField || 'SAYISAL'}
+                  </div>
+                </div>
+
+                {rankedExams.length === 0 ? (
+                  <p className="text-center py-10 text-sm text-slate-400 italic">Henüz deneme sonucu girilmemiş.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-400 bg-slate-50">
+                          <th className="py-3 px-3">Koçluk Sırası</th>
+                          <th className="py-3 px-3">Deneme Adı</th>
+                          <th className="py-3 px-3 text-center">Netler</th>
+                          <th className="py-3 px-3 text-right">Puan</th>
+                          <th className="py-3 px-3 text-center bg-indigo-50/70 text-indigo-900">2024 Tahmini Sıra</th>
+                          <th className="py-3 px-3 text-center bg-teal-50/70 text-teal-900">2025 Tahmini Sıra</th>
+                          <th className="py-3 px-3 text-right">Sil</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm font-medium">
+                        {rankedExams.map((exam) => (
+                          <tr key={exam.id} className="hover:bg-slate-50/80 transition">
+                            <td className="py-3.5 px-3">
+                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
+                                exam.rank === 1 ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                                exam.rank === 2 ? 'bg-slate-200 text-slate-800' :
+                                exam.rank === 3 ? 'bg-amber-800/10 text-amber-900' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                #{exam.rank}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3">
+                              <div className="font-bold text-slate-800">{exam.title}</div>
+                              <div className="text-[11px] text-slate-400">{exam.date}</div>
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              {currentStudent.track === 'YKS' ? (
+                                <div className="text-xs">
+                                  <span className="font-extrabold text-indigo-600">TYT: {exam.tytNet}</span>
+                                  <span className="mx-1 text-slate-300">|</span>
+                                  <span className="font-extrabold text-teal-600">AYT: {exam.aytNet}</span>
+                                </div>
+                              ) : (
+                                <span className="font-extrabold text-indigo-600 text-xs">Toplam: {exam.totalNet}</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 text-right font-black text-slate-900">
+                              {exam.totalPoints} P
+                            </td>
+                            <td className="py-3.5 px-3 text-center bg-indigo-50/30 font-black text-indigo-900 text-xs">
+                              {exam.rank2024}
+                            </td>
+                            <td className="py-3.5 px-3 text-center bg-teal-50/30 font-black text-teal-900 text-xs">
+                              {exam.rank2025}
+                            </td>
+                            <td className="py-3.5 px-3 text-right">
+                              <button
+                                onClick={() => {
+                                  updateStudentData(s => ({
+                                    ...s,
+                                    exams: s.exams.filter(e => e.id !== exam.id)
+                                  }));
+                                }}
+                                className="text-slate-300 hover:text-rose-600 transition"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 flex items-start gap-3">
+                <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600 leading-relaxed">
+                   Tahmini başarı sıralamaları, <strong>ÖSYM 2024 ve 2025 YKS/LGS yığılım verileri ve standart sapma eğrileri</strong> temel alınarak hesaplanmaktadır. Öğrencinin alanına ({currentStudent.yksField || 'SAYISAL'}) göre puan karşılığı yaklaşık sıra dilimi gösterilir.
+                </p>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
